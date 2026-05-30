@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CrisisLine — Agent Mind (live)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#08080c;--card:#13131d;--border:#2a2a3d;--ink:#ececf5;--mut:#9595a8;
+    --teal:#2dd4bf;--indigo:#8b8cf9;--violet:#c084fc;--amber:#fbbf24;--orange:#fb923c;--red:#f87171;--green:#34d399}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(1200px 600px at 50% -10%,#15152200,#08080c),var(--bg);color:var(--ink);
+    font-family:Inter,system-ui,sans-serif;min-height:100vh;padding:24px}
+  h1,h2,h3,.dsp{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px;font-family:'Space Grotesk';font-weight:700;font-size:22px}
+  .dot{width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--teal),var(--indigo));
+    box-shadow:0 0 18px var(--teal);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:.6}}
+  .live{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--teal);
+    border:1px solid var(--border);padding:7px 14px;border-radius:999px}
+  .live .b{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal);animation:pulse 1.4s infinite}
+  .live.off{color:var(--mut)} .live.off .b{background:var(--mut);box-shadow:none;animation:none}
+  .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:18px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-content:start}
+  @media(max-width:560px){.panels{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:6px 6px 0 #000}
+  .card.wide{grid-column:1 / -1}
+  .lbl{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:600}
+  .big{font-family:'Space Grotesk';font-weight:700;font-size:34px;margin-top:8px;text-transform:capitalize;line-height:1.05}
+  .sub{color:var(--mut);font-size:13.5px;margin-top:8px;min-height:18px}
+  .pill{display:inline-block;margin-top:10px;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;
+    font-family:'Space Grotesk';border:1px solid var(--border)}
+  .meter{display:flex;gap:6px;margin-top:14px}
+  .seg{flex:1;height:10px;border-radius:5px;background:#23233a;transition:background .3s}
+  .feed{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:6px 6px 0 #000;
+    height:560px;display:flex;flex-direction:column}
+  .feed h3{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .events{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:9px}
+  .ev{display:flex;gap:11px;align-items:flex-start;animation:slide .3s ease}
+  @keyframes slide{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+  .ev .ic{width:34px;height:34px;border-radius:10px;flex:0 0 34px;display:grid;place-items:center;font-size:16px;
+    border:1px solid var(--border);background:#1a1a26}
+  .ev .body{flex:1}
+  .ev .k{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .ev .l{font-family:'Space Grotesk';font-weight:600;font-size:15px;text-transform:capitalize}
+  .ev .v{color:var(--mut);font-size:13px;margin-top:1px}
+  .ev .t{font-size:11px;color:#6b6b80;white-space:nowrap}
+  .empty{color:var(--mut);font-size:14px;text-align:center;margin:auto;line-height:1.6}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand"><span class="dot"></span>CrisisLine · Agent Mind</div>
+    <div class="live off" id="status"><span class="b"></span><span id="statusTxt">connecting…</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="panels">
+      <div class="card wide">
+        <div class="lbl">Caller</div>
+        <div class="big" id="caller">—</div>
+        <div class="sub" id="callerSub">waiting for a call…</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Reading their state</div>
+        <div class="big" id="condition" style="color:var(--violet)">—</div>
+        <div class="sub" id="conditionSub"></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Risk level</div>
+        <div class="big" id="risk">—</div>
+        <div class="meter"><div class="seg" data-i="0"></div><div class="seg" data-i="1"></div><div class="seg" data-i="2"></div><div class="seg" data-i="3"></div></div>
+        <div class="sub" id="riskSub"></div>
+      </div>
+      <div class="card wide">
+        <div class="lbl">Safety check</div>
+        <div class="big" id="safety">—</div>
+        <div class="sub" id="safetySub"></div>
+      </div>
+    </div>
+
+    <div class="feed">
+      <h3><span class="dot"></span> Live reasoning feed</h3>
+      <div class="events" id="events"><div class="empty" id="empty">No call yet.<br>Call the agent and watch it think in real time.</div></div>
+    </div>
+  </div>
+
+<script>
+  const API = "https://headquarters-engine-resistance-registered.trycloudflare.com";
+  const ICON = { call:"📞", condition:"🧠", risk:"⚠️", safety:"🛟", helped:"✨", followup:"🔁", escalation:"🚨" };
+  const RISKLVL = { low:1, medium:2, high:3, critical:4 };
+  const RISKCOL = { low:"var(--teal)", medium:"var(--amber)", high:"var(--orange)", critical:"var(--red)" };
+  let lastTs = 0, seenAny = false;
+
+  function setStatus(ok){
+    const s = document.getElementById('status');
+    s.className = 'live' + (ok ? '' : ' off');
+    document.getElementById('statusTxt').textContent = ok ? 'live · connected' : 'backend offline';
+  }
+  function addEvent(e){
+    const empty = document.getElementById('empty'); if (empty) empty.remove();
+    const wrap = document.getElementById('events');
+    const row = document.createElement('div'); row.className = 'ev';
+    const t = new Date((e.ts||Date.now()/1000)*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    row.innerHTML = `<div class="ic">${ICON[e.kind]||'•'}</div>
+      <div class="body"><div class="k">${e.kind}</div><div class="l">${e.label||''}</div>
+      <div class="v">${(e.value||'').toString().slice(0,90)}</div></div><div class="t">${t}</div>`;
+    wrap.prepend(row);
+    while (wrap.children.length > 60) wrap.lastChild.remove();
+  }
+  function applyPanels(e){
+    if (e.kind === 'call'){
+      document.getElementById('caller').textContent = e.value || 'Unknown';
+      const tag = e.label === 'returning' ? '↩︎ Returning caller — loading their history'
+                : e.label === 'followup' ? '🔁 Outbound check-in we promised'
+                : 'New caller';
+      document.getElementById('callerSub').textContent = tag;
+    }
+    if (e.kind === 'condition'){
+      document.getElementById('condition').textContent = e.label;
+      document.getElementById('conditionSub').textContent = e.value || '';
+    }
+    if (e.kind === 'risk'){
+      const r = document.getElementById('risk'); r.textContent = e.label;
+      r.style.color = RISKCOL[e.label] || 'var(--ink)';
+      document.getElementById('riskSub').textContent = e.value || '';
+      const n = RISKLVL[e.label] || 0;
+      document.querySelectorAll('.seg').forEach(s => {
+        s.style.background = (+s.dataset.i < n) ? (RISKCOL[e.label]||'var(--teal)') : '#23233a';
+      });
+    }
+    if (e.kind === 'safety'){
+      const s = document.getElementById('safety');
+      s.textContent = e.label === 'unsafe' ? 'Not safe — escalating' : 'Confirmed safe';
+      s.style.color = e.label === 'unsafe' ? 'var(--red)' : 'var(--green)';
+      document.getElementById('safetySub').textContent = e.value || '';
+    }
+  }
+  async function poll(){
+    try{
+      const r = await fetch(API + '/events/recent?since=' + lastTs);
+      const d = await r.json(); setStatus(true);
+      (d.events||[]).forEach(e => { lastTs = Math.max(lastTs, e.ts||0); applyPanels(e); addEvent(e); seenAny = true; });
+    }catch(err){ setStatus(false); }
+  }
+  setInterval(poll, 1200); poll();
+</script>
+</body>
+</html>
