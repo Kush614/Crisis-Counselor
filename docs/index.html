@@ -238,8 +238,12 @@
         <div><b>CrisisLine</b><br><small>● online · replies in seconds</small></div>
       </div>
       <div class="thread" id="thread">
-        <div class="time"><b>iMessage</b> · CrisisLine · now</div>
+        <div class="time"><b>iMessage</b> · CrisisLine · Today 9:48 PM</div>
         <div class="bub tail them">Hey — I'm really glad you reached out. What's on your mind tonight?</div>
+        <div class="bub tail me">honestly just feeling really overwhelmed</div>
+        <div class="bub tail them">That sounds heavy. What's been piling up?</div>
+        <div class="bub tail me">work mostly. and I haven't been sleeping</div>
+        <div class="bub tail them">No sleep on top of all that — no wonder you feel worn down. How many nights has it been?</div>
       </div>
       <form class="composer" id="composer" autocomplete="off">
         <input id="msg" placeholder="Type a message…" aria-label="Message" />
@@ -322,6 +326,15 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
   const form = document.getElementById('composer');
   const input = document.getElementById('msg');
   if (!form) return;
+  // Prime the backend session with the pre-seeded context so continuing the
+  // thread stays coherent (the agent "remembers" the overwhelmed/work/sleep story).
+  fetch(API + '/llm/chat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: "I'm feeling really overwhelmed — it's mostly work, and I haven't been sleeping for a few nights.",
+      session_id: SID
+    })
+  }).catch(() => {});
   function add(text, who){
     const bubs = thread.querySelectorAll('.bub:not(.typing)');
     const prev = bubs[bubs.length - 1];
