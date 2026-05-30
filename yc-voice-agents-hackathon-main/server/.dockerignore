@@ -1,0 +1,10 @@
+.venv/
+venv/
+.env
+.env.*
+__pycache__/
+*.pyc
+*.log
+.crisis_memory.json
+optimizer_prompts/
+.DS_Store

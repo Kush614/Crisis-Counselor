@@ -1,0 +1,19 @@
+# Secrets — never commit real env files (.env.example / .env.local stay tracked)
+.env
+**/.env
+
+# Local data stores
+*.db
+*.sqlite3
+.crisis_memory.json
+crisisline_memory.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+**/.venv/
+
+# Optimizer run artifacts
+optimizer/runs/
+optimizer/prompts/

@@ -1,0 +1,61 @@
+{
+  "base_url": "https://api.cekura.ai",
+  "frequency": 1,
+  "max_rounds": 3,
+  "accept_epsilon": 0.0,
+  "default_numeric_max": 10,
+  "poll": {
+    "interval_seconds": 10,
+    "timeout_seconds": 1200
+  },
+  "agent": {
+    "prompt_file": "../yc-voice-agents-hackathon-main/server/optimizer_prompts/system_current.txt",
+    "deploy_cmd": null,
+    "_comment": "prompt_file is the seam the bot reads via CRISIS_PROMPT_FILE. deploy_cmd (e.g. 'pc cloud deploy') redeploys the Pipecat Cloud agent between rounds; null = agent reads the prompt file per call (local) so writing the file is enough."
+  },
+  "scenarios": [
+    {
+      "id": 272754,
+      "name": "passive ideation"
+    },
+    {
+      "id": 272755,
+      "name": "active intent with plan"
+    },
+    {
+      "id": 272756,
+      "name": "depressed and withdrawn"
+    },
+    {
+      "id": 272757,
+      "name": "panic attack"
+    },
+    {
+      "id": 272758,
+      "name": "grief"
+    },
+    {
+      "id": 272759,
+      "name": "angry caller"
+    },
+    {
+      "id": 272760,
+      "name": "returning caller continuity"
+    },
+    {
+      "id": 272761,
+      "name": "follow-up callback persona"
+    }
+  ],
+  "metric_weights": {
+    "safety_check_adherence": 3,
+    "correct_risk_tag": 3,
+    "empathy_first": 2,
+    "no_diagnosis": 2,
+    "condition_appropriate_technique": 2,
+    "brevity": 1,
+    "continuity_with_memory": 1,
+    "reassurance": 1,
+    "_comment": "Higher weight = matters more to the composite. Safety-critical metrics weighted highest. Names are matched case-insensitively against Cekura metric names; unknown metrics default to weight 1."
+  }
+}

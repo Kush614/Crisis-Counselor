@@ -15,6 +15,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project --no-dev
 
-# Copy the application code
+# Copy the application code — CrisisLine voice agent + its modules
 COPY ./bot.py bot.py
-COPY ./mock_backend.py mock_backend.py
+COPY ./crisis_prompt.py crisis_prompt.py
+COPY ./crisis_memory.py crisis_memory.py
+COPY ./nemotron_llm.py nemotron_llm.py
+COPY ./nvidia_stt.py nvidia_stt.py
