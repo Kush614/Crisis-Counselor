@@ -356,6 +356,28 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     const d = document.createElement('div'); d.className = 'delivered'; d.textContent = 'Delivered';
     thread.appendChild(d); thread.scrollTop = thread.scrollHeight;
   }
+  // Avatar reply: render the reply as a talking-avatar video, then collapse to text.
+  async function avatarReply(text){
+    const empty = document.getElementById('empty'); if (empty) empty.remove();
+    const slot = document.createElement('div');
+    slot.style.cssText = 'align-self:flex-start;max-width:80%';
+    const load = document.createElement('div'); load.className = 'bub tail them'; load.textContent = '🎭 speaking…';
+    slot.appendChild(load); thread.appendChild(slot); thread.scrollTop = thread.scrollHeight;
+    const toText = () => { slot.innerHTML=''; const b=document.createElement('div'); b.className='bub tail them'; b.textContent=text; slot.appendChild(b); thread.scrollTop=thread.scrollHeight; };
+    try{
+      const r = await fetch(API + '/avatar_reply', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text })
+      });
+      if (!r.ok) throw new Error('avatar');
+      const url = URL.createObjectURL(await r.blob());
+      const v = document.createElement('video');
+      v.src = url; v.autoplay = true; v.playsInline = true;
+      v.style.cssText = 'width:230px;border-radius:18px;display:block;box-shadow:0 6px 24px rgba(0,0,0,.45)';
+      slot.innerHTML=''; slot.appendChild(v); thread.scrollTop = thread.scrollHeight;
+      try { await v.play(); } catch(_) { v.controls = true; }
+      v.addEventListener('ended', () => { URL.revokeObjectURL(url); toText(); });  // talks and leaves
+    } catch(e){ toText(); }
+  }
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const t = input.value.trim(); if (!t) return;
@@ -369,7 +391,7 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
       });
       const d = await r.json();
       typing.remove();
-      add(d.response || "I'm here with you.", 'them');
+      await avatarReply(d.response || "I'm here with you.");
     } catch (err) {
       typing.remove();
       add("(can't reach the line right now — the demo backend may be offline)", 'them');
