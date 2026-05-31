@@ -138,12 +138,39 @@
       document.getElementById('safetySub').textContent = e.value || '';
     }
   }
+  // Recorded reel — replays if the live backend is unreachable, so the dashboard
+  // always shows the agent reasoning (demo runs even if the server is down).
+  const DEMO_REEL = [
+    {kind:'call', label:'new', value:'+1 (415) 555-0182'},
+    {kind:'condition', label:'depression', value:'flat affect — "what\'s the point anymore"'},
+    {kind:'risk', label:'medium', value:'passive ideation, no plan or means stated'},
+    {kind:'helped', label:'naming the feeling', value:'they breathed easier, started to open up'},
+    {kind:'condition', label:'anxiety', value:'racing thoughts about tomorrow'},
+    {kind:'safety', label:'safe', value:'gently checked — safe right now'},
+    {kind:'reassurance', label:'counselor coming', value:'reminded them a human is on the way, not alone'},
+    {kind:'followup', label:'tomorrow', value:'agreed to a check-in about how the night goes'},
+  ];
+  let fails = 0, demoMode = false, demoTimer = null, demoIdx = 0;
+  function startDemo(){
+    demoMode = true;
+    document.getElementById('status').className = 'live';
+    document.getElementById('statusTxt').textContent = 'recorded demo (offline)';
+    const step = () => {
+      const e = { ...DEMO_REEL[demoIdx % DEMO_REEL.length], ts: Date.now()/1000 };
+      applyPanels(e); addEvent(e); demoIdx++;
+      if (demoIdx % DEMO_REEL.length === 0){
+        clearInterval(demoTimer); setTimeout(() => { demoTimer = setInterval(step, 2600); }, 4500);
+      }
+    };
+    step(); demoTimer = setInterval(step, 2600);
+  }
   async function poll(){
+    if (demoMode) return;
     try{
       const r = await fetch(API + '/events/recent?since=' + lastTs);
-      const d = await r.json(); setStatus(true);
+      const d = await r.json(); setStatus(true); fails = 0;
       (d.events||[]).forEach(e => { lastTs = Math.max(lastTs, e.ts||0); applyPanels(e); addEvent(e); seenAny = true; });
-    }catch(err){ setStatus(false); }
+    }catch(err){ setStatus(false); if (++fails >= 3 && !seenAny) startDemo(); }
   }
   setInterval(poll, 1200); poll();
 </script>

@@ -356,6 +356,45 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     const d = document.createElement('div'); d.className = 'delivered'; d.textContent = 'Delivered';
     thread.appendChild(d); thread.scrollTop = thread.scrollHeight;
   }
+  // Offline counselor — condition-aware canned replies so the demo holds a real,
+  // warm conversation even when the backend/tunnel is down. Keyword-matched, with
+  // a small amount of memory of what was already said.
+  let turns = 0, saidSafety = false;
+  function localReply(t){
+    const s = t.toLowerCase(); turns++;
+    const crisis = /\b(kill myself|suicide|suicidal|end it|don'?t want to (be here|live)|hurt myself|harm myself|not worth living)\b/;
+    if (crisis.test(s)){
+      saidSafety = true;
+      return "Thank you for telling me that — that took courage, and I'm really glad you did. You matter, and I want to keep you safe. Are you safe right now, in this moment? If you're in danger, please call or text 988. I'm staying right here with you.";
+    }
+    if (/\b(panic|panicking|can'?t breathe|heart racing|hyperventilat)/.test(s))
+      return "Okay — let's slow this down together. You're not in danger, this wave will pass. Breathe in with me for 4… hold 4… out for 6. I'm right here. Can you feel your feet on the floor?";
+    if (/\b(can'?t sleep|not sleeping|haven'?t slept|insomnia|awake all night)/.test(s))
+      return "A few nights without real sleep would wear anyone down — no wonder everything feels heavier. When your mind races at night, what's the loudest thought that shows up?";
+    if (/\b(overwhelm|too much|can'?t cope|drowning|falling apart|breaking down)/.test(s))
+      return "That sounds like a lot to be carrying all at once. Let's not solve all of it tonight — just the next hour. What's the one thing sitting heaviest on you right now?";
+    if (/\b(anx|nervous|worried|worry|on edge|dread)/.test(s))
+      return "Anxiety has a way of making everything feel urgent at once. You're safe in this moment. What does the worry keep circling back to?";
+    if (/\b(work|job|boss|deadline|fired|quit)/.test(s))
+      return "Work stress can follow you home and never clock out. It makes sense you're drained. Is it the workload itself, or more how it's been making you feel about yourself?";
+    if (/\b(alone|lonely|no one|nobody|isolated)/.test(s))
+      return "Feeling alone in this is one of the hardest parts — and right now you're not. I'm here, and I'm not going anywhere. Who in your life feels even a little safe to reach out to?";
+    if (/\b(grief|grieving|lost|died|death|passed away|miss (her|him|them))/.test(s))
+      return "I'm so sorry. That kind of loss leaves a hole that doesn't just close. You don't have to be okay about it. Tell me about them — what do you miss most?";
+    if (/\b(sad|depress|empty|numb|hopeless|pointless|what'?s the point|no point)/.test(s))
+      return "That heaviness is real, and you don't have to carry it alone right now. Even reaching out took something. What's today felt like for you?";
+    if (/\b(thank|better|helps|helping|appreciate)/.test(s))
+      return "I'm really glad. You did the hard part by talking. I'm here whenever it gets loud again — and I'll check in on you. You're not alone in this.";
+    if (/\b(yes|yeah|i am|i'?m safe|safe)/.test(s) && saidSafety)
+      return "That's a relief to hear. Let's stay with that. We'll take this one small step at a time — what would help you feel even a little steadier tonight?";
+    const opens = [
+      "I hear you. Tell me a little more about what that's been like for you.",
+      "Thank you for trusting me with that. What's been the hardest part?",
+      "I'm listening, and I'm not rushing you. What's on your mind right now?",
+      "That makes sense. You don't have to have the words perfect — just keep going."
+    ];
+    return opens[turns % opens.length];
+  }
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const t = input.value.trim(); if (!t) return;
@@ -363,16 +402,21 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     await new Promise(r => setTimeout(r, 450));   // brief beat before the dots, like iMessage
     const typing = addTyping();
     try {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 6000);
       const r = await fetch(API + '/llm/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: t, session_id: SID })
+        body: JSON.stringify({ message: t, session_id: SID }), signal: ctrl.signal
       });
+      clearTimeout(to);
       const d = await r.json();
       typing.remove();
-      add(d.response || "I'm here with you.", 'them');
+      add(d.response || localReply(t), 'them');
     } catch (err) {
+      // Backend offline → keep the conversation alive with the local counselor.
+      await new Promise(r => setTimeout(r, 350));
       typing.remove();
-      add("(can't reach the line right now — the demo backend may be offline)", 'them');
+      add(localReply(t), 'them');
     }
   });
 })();
