@@ -65,6 +65,16 @@ class MemoryClient:
         except Exception as e:
             logger.warning(f"Memory save failed for {caller_id} (non-fatal): {e}")
 
+    async def get_active_prompt(self) -> str:
+        """Fetch the optimizer's current prompt (hot-swappable, no redeploy). Empty -> use BASE_SYSTEM."""
+        if not self.api_url:
+            return ""
+        try:
+            data = await self._http_get("/active_prompt")
+            return (data or {}).get("prompt", "") if isinstance(data, dict) else ""
+        except Exception:
+            return ""
+
     def emit_event(self, caller_id: str, kind: str, label: str, value: str = "") -> None:
         """Fire-and-forget: push a live reasoning event to the dashboard feed.
         Non-blocking so it never adds latency to a live turn."""

@@ -37,6 +37,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.runner.types import (
+    DailyRunnerArguments,
     RunnerArguments,
     SmallWebRTCRunnerArguments,
     WebSocketRunnerArguments,
@@ -247,9 +248,13 @@ async def run_bot(
     tools = ToolsSchema(standard_tools=tool_functions)
 
     # --- System instruction (persona + playbook + memory continuity) ---------
+    # Fetch the optimizer's hot-swapped prompt (auto-improve loop swaps it with no
+    # redeploy); empty -> baked-in BASE_SYSTEM.
+    active_prompt = await memory.get_active_prompt()
     system_instruction = build_system_instruction(
         caller_context=caller_context,
         followup_context=followup_context,
+        base_override=active_prompt,
     )
     system_instruction += (
         f"\n\nToday is {date.today().strftime('%A, %B %d, %Y')}. Use this for relative "
@@ -303,13 +308,35 @@ async def run_bot(
             ),
         )
 
-    # Text-to-Speech — Gradium. Pick a warm voice for a counselor.
-    tts = GradiumTTSService(
-        api_key=os.environ["GRADIUM_API_KEY"],
-        settings=GradiumTTSService.Settings(
-            voice=os.getenv("GRADIUM_VOICE_ID", "Eu9iL_CYe8N-Gkx_"),
-        ),
-    )
+    # Text-to-Speech. Gradium's key was revoked at the event (TTS connection failed,
+    # so the bot generated words but couldn't speak them). Default to OpenAI TTS —
+    # we already ship a working OPENAI_API_KEY. Set CRISIS_TTS_BACKEND=gradium with a
+    # fresh GRADIUM_API_KEY to switch back.
+    tts_backend = os.getenv("CRISIS_TTS_BACKEND", "openai").lower()
+    if tts_backend == "gradium":
+        tts = GradiumTTSService(
+            api_key=os.environ["GRADIUM_API_KEY"],
+            settings=GradiumTTSService.Settings(
+                voice=os.getenv("GRADIUM_VOICE_ID", "Eu9iL_CYe8N-Gkx_"),
+            ),
+        )
+    else:
+        from pipecat.services.openai.tts import OpenAITTSService
+
+        # gpt-4o-mini-tts takes free-form tone instructions — steer it warm and slow,
+        # like a counselor who is in no rush.
+        tts = OpenAITTSService(
+            api_key=os.environ["OPENAI_API_KEY"],
+            settings=OpenAITTSService.Settings(
+                voice=os.getenv("CRISIS_TTS_VOICE", "shimmer"),
+                model=os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"),
+                instructions=(
+                    "Speak like a warm, unhurried crisis-support counselor: gentle, "
+                    "calm, low and steady, with soft caring pauses. Never rushed, "
+                    "never clinical."
+                ),
+            ),
+        )
 
     for fn in tool_functions:
         llm.register_direct_function(fn)
@@ -463,6 +490,36 @@ async def bot(runner_args: RunnerArguments):
                     audio_out_enabled=True,
                     add_wav_header=False,
                     serializer=serializer,
+                ),
+            )
+        case DailyRunnerArguments():
+            # Pipecat Cloud hands us a Daily room for phone calls (Twilio→Daily SIP)
+            # AND for Cekura's automated test calls. Without this case the session is
+            # rejected at `case _:` and the bot never speaks — silence on every call.
+            body = getattr(runner_args, "body", None) or {}
+            dialin = (body.get("dialin_settings") or body.get("dialinSettings") or {}) \
+                if isinstance(body, dict) else {}
+            frm = dialin.get("from") or dialin.get("From") or dialin.get("caller")
+            to = dialin.get("to") or dialin.get("To")
+            # Same direction logic as Twilio: if WE are the caller, it's an outbound
+            # follow-up and the human is the 'to'; otherwise the human is the 'from'.
+            if frm and twilio_number and frm == twilio_number:
+                caller_id, is_followup = to, True
+                logger.info(f"Outbound follow-up call (Daily) to {to}")
+            elif frm:
+                caller_id = frm
+            # Lazy import: daily-python ships in the Pipecat Cloud base image but
+            # isn't needed for local WebRTC dev.
+            from pipecat.transports.daily.transport import DailyParams, DailyTransport
+
+            transport = DailyTransport(
+                runner_args.room_url,
+                runner_args.token,
+                "CrisisLine",
+                params=DailyParams(
+                    audio_in_enabled=True,
+                    audio_in_filter=krisp_filter,
+                    audio_out_enabled=True,
                 ),
             )
         case _:

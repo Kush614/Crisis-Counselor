@@ -10,6 +10,7 @@ from app.routes.callback import callback_router
 from app.routes.messaging import messaging_router
 from app.routes.events import events_router
 from app.routes.avatar import avatar_router
+from app.routes.prompt import prompt_router
 from app.db.memory_db import init_db
 from app.scheduler import run_scheduler
 from app.model.llm import Model
@@ -63,6 +64,7 @@ app.include_router(callback_router, prefix="/callback", tags=["callback"])
 app.include_router(messaging_router, tags=["messaging"])  # /sms + /imessage
 app.include_router(events_router, tags=["events"])  # /events for the live dashboard
 app.include_router(avatar_router, tags=["avatar"])  # /avatar_reply -> talking-avatar MP4
+app.include_router(prompt_router, tags=["prompt"])  # /active_prompt -> hot-swap agent prompt (auto-improve)
 
 
 @app.on_event("startup")

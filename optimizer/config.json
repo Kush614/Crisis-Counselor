@@ -11,6 +11,7 @@
   "agent": {
     "prompt_file": "../yc-voice-agents-hackathon-main/server/optimizer_prompts/system_current.txt",
     "deploy_cmd": null,
+    "prompt_push_url": "https://headquarters-engine-resistance-registered.trycloudflare.com/active_prompt",
     "_comment": "prompt_file is the seam the bot reads via CRISIS_PROMPT_FILE. deploy_cmd (e.g. 'pc cloud deploy') redeploys the Pipecat Cloud agent between rounds; null = agent reads the prompt file per call (local) so writing the file is enough."
   },
   "scenarios": [

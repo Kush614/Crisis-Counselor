@@ -123,14 +123,16 @@ def active_base() -> str:
     return BASE_SYSTEM
 
 
-def build_system_instruction(caller_context: str = "", followup_context: str = "") -> str:
+def build_system_instruction(caller_context: str = "", followup_context: str = "",
+                             base_override: str = "") -> str:
     """Assemble the full system instruction for one call.
 
     Args:
         caller_context: Continuity context for a returning caller (from memory).
         followup_context: Set when WE initiated this call as a promised check-in.
+        base_override: Optimizer's hot-swapped base prompt; falls back to BASE_SYSTEM.
     """
-    parts = [active_base(), _condition_block()]
+    parts = [(base_override.strip() if base_override.strip() else active_base()), _condition_block()]
     if followup_context:
         parts.append("THIS IS A FOLLOW-UP CALL YOU INITIATED:\n" + followup_context)
     if caller_context:

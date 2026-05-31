@@ -76,12 +76,25 @@ def seed_prompt(prompt_file: Path) -> str:
 
 
 def make_deploy_fn(config: dict, prompt_file: Path):
-    """Write the candidate prompt to the seam, and optionally redeploy the agent."""
+    """Make the candidate prompt live. Preferred: POST it to the backend's
+    /active_prompt so the deployed agent picks it up on the next call — NO
+    redeploy. Falls back to writing the seam file / running deploy_cmd."""
     deploy_cmd = config.get("agent", {}).get("deploy_cmd")
+    push_url = config.get("agent", {}).get("prompt_push_url")
 
     def deploy(prompt: str, label: str) -> None:
         prompt_file.parent.mkdir(parents=True, exist_ok=True)
         prompt_file.write_text(prompt, encoding="utf-8")
+        if push_url:
+            import urllib.request
+            try:
+                req = urllib.request.Request(
+                    push_url, data=json.dumps({"prompt": prompt}).encode(), method="POST")
+                req.add_header("Content-Type", "application/json")
+                urllib.request.urlopen(req, timeout=15).read()
+                print(f"  → pushed prompt to live agent ({label}, {len(prompt)} chars, no redeploy)")
+            except Exception as e:
+                print(f"  WARN: prompt push failed: {e}")
         if deploy_cmd:
             print(f"  → deploying agent for {label}: {deploy_cmd}")
             subprocess.run(deploy_cmd, shell=True, check=True)

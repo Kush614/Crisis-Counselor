@@ -247,9 +247,13 @@ async def run_bot(
     tools = ToolsSchema(standard_tools=tool_functions)
 
     # --- System instruction (persona + playbook + memory continuity) ---------
+    # Fetch the optimizer's hot-swapped prompt (auto-improve loop swaps it with no
+    # redeploy); empty -> baked-in BASE_SYSTEM.
+    active_prompt = await memory.get_active_prompt()
     system_instruction = build_system_instruction(
         caller_context=caller_context,
         followup_context=followup_context,
+        base_override=active_prompt,
     )
     system_instruction += (
         f"\n\nToday is {date.today().strftime('%A, %B %d, %Y')}. Use this for relative "

@@ -17,3 +17,6 @@ __pycache__/
 # Optimizer run artifacts
 optimizer/runs/
 optimizer/prompts/
+
+# scratch / one-off debug scripts
+optimizer/_*.py
