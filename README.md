@@ -6,6 +6,8 @@
 
 **Live demo:** https://kush614.github.io/Crisis-Counselor/ · **Call it:** +1 (877) 516-4159 · **Proof page:** https://kush614.github.io/Crisis-Counselor/graph.html
 
+▶ **45-second sizzle reel:** [`docs/reel.mp4`](docs/reel.mp4) (silent — narrate over it, or watch the screenshots below)
+
 ---
 
 ## The 30-second version

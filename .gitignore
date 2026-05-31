@@ -20,3 +20,4 @@ optimizer/prompts/
 
 # scratch / one-off debug scripts
 optimizer/_*.py
+tools/_build/
