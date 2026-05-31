@@ -155,6 +155,22 @@
   .bub.typing span:nth-child(2){animation-delay:.18s}
   .bub.typing span:nth-child(3){animation-delay:.36s}
   @keyframes td{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+  /* persistent avatar stage */
+  .avstage{position:relative;height:240px;background:#05050a;display:flex;align-items:center;justify-content:center;
+    border-bottom:1px solid var(--border);overflow:hidden}
+  .avstage video{height:100%;width:auto;display:none}
+  .avstage.on video{display:block}
+  .avhint{position:absolute;color:#7a7a8e;font-size:13px;font-family:'Space Grotesk';display:flex;flex-direction:column;align-items:center;gap:10px}
+  .avhint .ring{width:54px;height:54px;border-radius:50%;border:2px solid #23233a;border-top-color:var(--teal);animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .avstage.on .avhint{display:none}
+  .avplay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);cursor:pointer}
+  .avplay span{width:62px;height:62px;border-radius:50%;background:var(--teal);color:#05050a;display:grid;place-items:center;font-size:26px;box-shadow:0 0 30px var(--teal)}
+  .avstage.needtap .avplay{display:flex}
+  .speakdot{position:absolute;top:12px;right:14px;display:none;align-items:center;gap:7px;font-size:11px;color:var(--teal);
+    background:rgba(0,0,0,.5);padding:5px 10px;border-radius:999px}
+  .avstage.speaking .speakdot{display:flex}
+  .speakdot i{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);animation:pulse 1.2s infinite}
   .composer{display:flex;gap:8px;padding:12px;background:#0d0d15;border-top:1px solid var(--border)}
   .composer input{flex:1;background:#1a1a22;border:1px solid var(--border);color:var(--ink);
     border-radius:18px;padding:11px 15px;font-size:14px;outline:none}
@@ -236,6 +252,12 @@
       <div class="bar">
         <div class="av"></div>
         <div><b>CrisisLine</b><br><small>● online · replies in seconds</small></div>
+      </div>
+      <div class="avstage" id="avstage">
+        <video id="avvid" playsinline preload="auto"></video>
+        <div class="avhint" id="avhint"><div class="ring"></div>summoning your counselor…</div>
+        <div class="speakdot"><i></i> speaking</div>
+        <div class="avplay" id="avplay"><span>▶</span></div>
       </div>
       <div class="thread" id="thread">
         <div class="time"><b>iMessage</b> · CrisisLine · Today 9:48 PM</div>
@@ -356,28 +378,34 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     const d = document.createElement('div'); d.className = 'delivered'; d.textContent = 'Delivered';
     thread.appendChild(d); thread.scrollTop = thread.scrollHeight;
   }
-  // Avatar reply: render the reply as a talking-avatar video, then collapse to text.
-  async function avatarReply(text){
-    const empty = document.getElementById('empty'); if (empty) empty.remove();
-    const slot = document.createElement('div');
-    slot.style.cssText = 'align-self:flex-start;max-width:80%';
-    const load = document.createElement('div'); load.className = 'bub tail them'; load.textContent = '🎭 speaking…';
-    slot.appendChild(load); thread.appendChild(slot); thread.scrollTop = thread.scrollHeight;
-    const toText = () => { slot.innerHTML=''; const b=document.createElement('div'); b.className='bub tail them'; b.textContent=text; slot.appendChild(b); thread.scrollTop=thread.scrollHeight; };
-    try{
-      const r = await fetch(API + '/avatar_reply', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text })
-      });
-      if (!r.ok) throw new Error('avatar');
-      const url = URL.createObjectURL(await r.blob());
-      const v = document.createElement('video');
-      v.src = url; v.autoplay = true; v.playsInline = true;
-      v.style.cssText = 'width:230px;border-radius:18px;display:block;box-shadow:0 6px 24px rgba(0,0,0,.45)';
-      slot.innerHTML=''; slot.appendChild(v); thread.scrollTop = thread.scrollHeight;
-      try { await v.play(); } catch(_) { v.controls = true; }
-      v.addEventListener('ended', () => { URL.revokeObjectURL(url); toText(); });  // talks and leaves
-    } catch(e){ toText(); }
+  // ---- persistent avatar stage (preloaded, speaks each reply) ----
+  const avstage = document.getElementById('avstage'),
+        avvid   = document.getElementById('avvid'),
+        avplay  = document.getElementById('avplay'),
+        avhint  = document.getElementById('avhint');
+  async function fetchClip(text){
+    const r = await fetch(API + '/avatar_reply', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
+    if (!r.ok) throw new Error('avatar'); return URL.createObjectURL(await r.blob());
   }
+  function playStage(url){
+    avvid.src = url; avstage.classList.add('on','speaking');
+    avvid.muted = false;
+    avvid.onended = () => avstage.classList.remove('speaking');
+    avvid.play().then(() => avstage.classList.remove('needtap'))
+                .catch(() => avstage.classList.add('needtap'));
+  }
+  avplay && avplay.addEventListener('click', () => {
+    avstage.classList.remove('needtap'); avvid.muted = false; avvid.play().catch(()=>{}); });
+  async function preloadAvatar(){   // greeting face is ready when the page opens
+    try{
+      const url = await fetchClip("Hey — I'm really glad you reached out. I'm right here with you, whenever you're ready.");
+      avvid.src = url; avstage.classList.add('on'); avvid.muted = true;
+      avvid.addEventListener('loadeddata', () => { try{ avvid.currentTime = 0.05; }catch(_){ } avvid.pause(); }, { once:true });
+    }catch(e){ if (avhint) avhint.textContent = 'avatar offline (backend down?)'; }
+  }
+  async function speakAvatar(text){ try{ playStage(await fetchClip(text)); }catch(e){} }
+  preloadAvatar();
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const t = input.value.trim(); if (!t) return;
@@ -391,7 +419,9 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
       });
       const d = await r.json();
       typing.remove();
-      await avatarReply(d.response || "I'm here with you.");
+      const reply = d.response || "I'm here with you.";
+      add(reply, 'them');       // text in the thread
+      speakAvatar(reply);       // avatar speaks it on the stage (non-blocking)
     } catch (err) {
       typing.remove();
       add("(can't reach the line right now — the demo backend may be offline)", 'them');
