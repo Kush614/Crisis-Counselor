@@ -326,17 +326,20 @@ async def run_bot(
         ),
     )
 
-    pipeline = Pipeline(
-        [
-            transport.input(),
-            stt,
-            user_aggregator,
-            llm,
-            tts,
-            transport.output(),
-            assistant_aggregator,
-        ]
-    )
+    # Optional video avatar (web/WebRTC only). Lazy-imported so the phone/cloud
+    # agent never loads it. Insert after TTS: it lip-syncs the spoken audio.
+    avatar = os.getenv("CRISIS_AVATAR", "false").lower() == "true"
+    parts = [transport.input(), stt, user_aggregator, llm, tts]
+    if avatar:
+        from pipecat.services.simli.video import SimliVideoService
+
+        parts.append(SimliVideoService(
+            api_key=os.environ["SIMLI_API_KEY"],
+            face_id=os.getenv("SIMLI_FACE_ID", "tmp9i8bbq7c"),
+        ))
+        logger.info("Avatar ON (Simli)")
+    parts += [transport.output(), assistant_aggregator]
+    pipeline = Pipeline(parts)
 
     worker = PipelineWorker(
         pipeline,
@@ -413,12 +416,17 @@ async def bot(runner_args: RunnerArguments):
     match runner_args:
         case SmallWebRTCRunnerArguments():
             webrtc_connection: SmallWebRTCConnection = runner_args.webrtc_connection
+            _avatar = os.getenv("CRISIS_AVATAR", "false").lower() == "true"
             transport = SmallWebRTCTransport(
                 webrtc_connection=webrtc_connection,
                 params=TransportParams(
                     audio_in_enabled=True,
                     audio_in_filter=krisp_filter,
                     audio_out_enabled=True,
+                    video_out_enabled=_avatar,      # avatar video stream
+                    video_out_is_live=_avatar,
+                    video_out_width=512,
+                    video_out_height=512,
                 ),
             )
         case WebSocketRunnerArguments():
